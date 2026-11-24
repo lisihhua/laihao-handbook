@@ -210,7 +210,7 @@ function list(){
  if(io)io.disconnect();
  io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){const im=e.target;io.unobserve(im);getImg(im.dataset.p).then(u=>{im.src=u}).catch(()=>{})}}),{rootMargin:'200px'});
  document.querySelectorAll('#rows img[data-p]').forEach(im=>io.observe(im));
- document.querySelectorAll('.row').forEach(r=>r.onclick=()=>{order='seq';deck=D.map((_,i)=>i);only=false;pos=+r.dataset.r-1;shown=false;tab('quiz');render()});
+ document.querySelectorAll('.row').forEach(r=>r.onclick=()=>{order='seq';deck=D.map((_,i)=>i);only=false;pos=+r.dataset.r-1;shown=false;tab('quiz');render();window.scrollTo(0,0)});
 }
 $('#search').oninput=list;
 function unlock(){$('#lock').remove();$('#app').classList.remove('hidden');deck=D.map((_,i)=>i);pos=0;shown=false;render();}
