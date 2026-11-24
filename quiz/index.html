@@ -23,6 +23,7 @@ header.top .wrap{padding-bottom:12px}
 .row1{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
 header h1{font-size:20px;font-weight:700;line-height:1.25;letter-spacing:.02em;flex:1;min-width:200px}
 .sub{font-size:13px;color:var(--sub);margin-top:4px}
+.hbar{display:flex;align-items:center;justify-content:space-between;gap:8px}.navs{display:flex;gap:8px}
 .back{border:1px solid var(--line);background:#fff;color:var(--txt);border-radius:6px;font-size:14px;font-weight:700;padding:0 12px;height:36px;line-height:34px;text-decoration:none;white-space:nowrap}
 main.app{max-width:860px;margin:0 auto;padding:16px 16px 28px}
 .tabs{display:flex;border-bottom:1px solid var(--line);margin-bottom:14px}
@@ -77,7 +78,7 @@ footer.ft{text-align:center;color:var(--sub);font-size:12px;padding:0 0 22px}
  .ans{margin:0;display:flex;align-items:center;padding:0 10px}.ans>*{width:100%}
  .cover{padding:56px 16px}.pname{font-size:26px}.vend{font-size:21px}
 }
-@media(max-width:640px){header h1{font-size:17px;min-width:0}.back{font-size:13px;padding:0 10px}.photo{height:min(27vh,228px)}.hint{display:none}.pname{font-size:20px}.btn{padding:10px 14px;font-size:14px}}
+@media(max-width:640px){.navs{gap:6px}header h1{font-size:17px;min-width:0}.back{font-size:12px;padding:0 8px}.photo{height:min(27vh,228px)}.hint{display:none}.pname{font-size:20px}.btn{padding:10px 14px;font-size:14px}}
 .err{min-height:20px;margin-top:8px;font-size:13px;color:#c4513f}.go1:disabled{opacity:.6}.photo .ld{color:var(--sub);font-size:13px}
 </style>
 </head>
@@ -98,8 +99,8 @@ footer.ft{text-align:center;color:var(--sub);font-size:12px;padding:0 0 22px}
 <div id="app" class="hidden">
  <header class="top">
   <div class="wrap">
-   <img class="logo" alt="來好 LAI HAO">
-   <div class="row1"><h1>門市熱銷前 50 名商品測驗</h1><a class="back" href="../">← 新人商品手冊</a></div>
+   <div class="hbar"><img class="logo" alt="來好 LAI HAO"><nav class="navs"><a class="back" href="../">← 新人商品手冊</a><a class="back" href="../quiz-51-100/">51–100 測驗</a></nav></div>
+   <div class="row1"><h1>門市熱銷前 50 名商品測驗</h1></div>
    <div class="sub">看圖辨識廠商與商品名稱</div>
   </div>
   <div class="brandbar"><i></i><i></i><i></i></div>
