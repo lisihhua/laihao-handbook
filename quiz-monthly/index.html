@@ -89,6 +89,11 @@ main.app{max-width:720px;margin:0 auto;padding:16px 16px 32px}
 .rv .tx{flex:1;min-width:0;font-size:14px}.rv .tx b{display:block;font-size:15px;line-height:1.4}
 .rv .tx .ca{color:#1f7a47;font-weight:700}.rv .tx .ya{color:#b1301d}
 .btns{display:flex;gap:10px;margin-top:16px}.btns>*{flex:1}
+.rtbox{margin-top:16px;border-radius:12px;padding:14px;text-align:center}
+.rtbox.more{border:1px solid #f0b4aa;background:#fff3f1}.rtbox.done{border:1px solid #bfe3cd;background:#eaf7ef}
+.rtbox .rtmsg{font-size:15px;margin-bottom:10px}.rtbox.done .rtmsg{font-size:18px;font-weight:800;color:#1f7a47;margin-bottom:0}
+.rtbtn{width:100%;border:0;border-radius:10px;background:var(--red);color:#fff;font-size:17px;font-weight:700;padding:14px}
+.rtbanner{display:inline-block;font-size:13px;font-weight:700;border-radius:20px;padding:3px 12px;background:#fff3f1;color:#c4513f;border:1px solid #f0b4aa;margin-bottom:8px}
 footer.ft{text-align:center;color:var(--sub);font-size:12px;padding:0 0 22px}
 /* lock */
 #lock{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
@@ -169,6 +174,7 @@ footer.ft{text-align:center;color:var(--sub);font-size:12px;padding:0 0 22px}
   <section id="vExam" class="hidden">
    <div id="examLoading" class="loading">題目準備中…</div>
    <div id="examBody" class="hidden">
+    <div class="rtbanner hidden" id="rtBanner"></div>
     <div class="qtop"><span>第 <b id="qNo">1</b> / <span id="qTot">15</span> 題</span><span class="clock" id="clock">10</span></div>
     <div class="tbar" id="tbar"><i id="tfill"></i></div>
     <span class="qtag" id="qTag"></span>
@@ -185,6 +191,7 @@ footer.ft{text-align:center;color:var(--sub);font-size:12px;padding:0 0 22px}
    <div class="send" id="sendState"></div>
    <div class="lbl">答案對照</div>
    <div id="review"></div>
+   <div class="rtbox hidden" id="rtBox"><div class="rtmsg" id="rtMsg"></div><button class="rtbtn hidden" id="rtBtn">錯題重考</button></div>
    <div class="btns"><button class="ghost" data-home>回複習頁</button><button class="ghost" id="againBtn">再考一次</button></div>
   </section>
  </main>
@@ -343,7 +350,7 @@ function fillNameForm(){
  else if(saved){$("#empSelect").value="__other__";$("#empName").value=saved}
  else{$("#empSelect").value="";$("#empName").value=""}
  toggleOther();
- $("#rule").innerHTML="・共 "+(P.price_q+P.pool_q)+" 題選擇題："+P.price_q+" 題商品售價、"+P.pool_q+" 題當月活動<br>・每題限時 "+P.seconds+" 秒，時間到算答錯並自動跳下一題<br>・考完會顯示分數與正確答案"+(P.submit_url?"，成績會送給主管":"");
+ $("#rule").innerHTML="・共 "+(P.price_q+P.pool_q)+" 題選擇題："+P.price_q+" 題商品售價、"+P.pool_q+" 題當月活動<br>・每題限時 "+P.seconds+" 秒，時間到算答錯並自動跳下一題<br>・考完會顯示分數與正確答案，答錯的題目可按「錯題重考」再練習"+(P.submit_url?"，成績會送給主管":"");
 }
 function toggleOther(){
  const o=$("#empSelect").value==="__other__";
@@ -357,6 +364,7 @@ function chosenName(){
  return v;
 }
 let EXAM=[],cur=0,ans=[],timer=null,tEnd=0,locked=false,startedAt=null,EMP_NAME="";
+let RETAKE=false,RT_ROUND=0,MAIN_ATTEMPT=1,WRONGQ=[];
 function stopTimer(){if(timer){clearInterval(timer);timer=null}}
 async function startExam(){
  const name=chosenName();
@@ -364,7 +372,8 @@ async function startExam(){
  if(!name){$("#nameErr").textContent="請輸入姓名";$("#empName").focus();return}
  try{localStorage.setItem(LS_NAME,name)}catch(e){}
  EMP_NAME=name;
- EXAM=makeExam();cur=0;ans=[];startedAt=new Date();
+ EXAM=makeExam();EXAM.forEach((q,i)=>q.no0=i+1);cur=0;ans=[];startedAt=new Date();
+ RETAKE=false;RT_ROUND=0;WRONGQ=[];$("#rtBanner").classList.add("hidden");
  show("vExam");$("#examLoading").classList.remove("hidden");$("#examBody").classList.add("hidden");
  $("#examLoading").textContent="題目準備中…";
  // 先把所有題目圖片載好，計時才公平
@@ -401,20 +410,26 @@ function tick(){
 function choose(i){
  if(locked)return;locked=true;stopTimer();
  const q=EXAM[cur],ok=i===q.ans;
- ans.push({no:cur+1,type:q.type==="price"?"價格":q.type,question:q.q+(q.type==="price"?"（"+q.sub+"）":""),
+ ans.push({no:q.no0||cur+1,type:q.type==="price"?"價格":q.type,question:q.q+(q.type==="price"?"（"+q.sub+"）":""),
   choice:i>=0?q.o[i]:null,correct:q.o[q.ans],ok,timeout:i<0,ms:Date.now()-q.t0});
  document.querySelectorAll("#opts .opt").forEach((b,k)=>{b.disabled=true;if(k===q.ans)b.classList.add("ok");else if(k===i)b.classList.add("bad")});
  $("#flash").className="flash "+(ok?"ok":"bad");
  $("#flash").textContent=i<0?"⏰ 時間到！":ok?"✓ 答對了":"✗ 答錯了";
- setTimeout(()=>{cur++;if(cur<EXAM.length)showQ();else finish()},i<0?1300:900);
+ setTimeout(()=>{cur++;if(cur<EXAM.length)showQ();else if(RETAKE)finishRetake();else finish()},i<0?1300:900);
+}
+function reviewHtml(list){
+ return list.map(a=>'<div class="rv '+(a.ok?"ok":"bad")+'"><span class="mk">'+(a.ok?"✓":"✗")+'</span><div class="tx"><b>'+a.no+'. '+esc(a.question)+'</b>正確答案：<span class="ca">'+esc(a.correct)+'</span>'+(a.ok?'':'<br>你的答案：<span class="ya">'+(a.timeout?"時間到未作答":esc(a.choice))+'</span>')+'</div></div>').join("");
 }
 async function finish(){
  const score=ans.filter(a=>a.ok).length,total=EXAM.length,name=EMP_NAME;
  const akey="monthly_exam_attempt_"+P.exam_month+"_"+STORE+"_"+name;let attempt=1;
  try{attempt=(+localStorage.getItem(akey)||0)+1;localStorage.setItem(akey,attempt)}catch(e){}
+ MAIN_ATTEMPT=attempt;
  $("#scoreNum").innerHTML=score+"<small> / "+total+"</small>";
  $("#scoreWho").textContent=STORE+"・"+name+"・"+P.exam_label+"（第 "+attempt+" 次）";
- $("#review").innerHTML=ans.map(a=>'<div class="rv '+(a.ok?"ok":"bad")+'"><span class="mk">'+(a.ok?"✓":"✗")+'</span><div class="tx"><b>'+a.no+'. '+esc(a.question)+'</b>正確答案：<span class="ca">'+esc(a.correct)+'</span>'+(a.ok?'':'<br>你的答案：<span class="ya">'+(a.timeout?"時間到未作答":esc(a.choice))+'</span>')+'</div></div>').join("");
+ $("#review").innerHTML=reviewHtml(ans);
+ WRONGQ=EXAM.filter((q,i)=>ans[i]&&!ans[i].ok);
+ renderRetakeBox();
  show("vResult");
  const rec={month:P.exam_month,store:STORE,name,score,total,answers:ans,timestamp:new Date().toISOString(),timestamp_taipei:new Date().toLocaleString("zh-TW",{timeZone:"Asia/Taipei",hour12:false}),
   attempt,started_at:startedAt.toISOString(),deadline:P.deadline,
@@ -423,7 +438,51 @@ async function finish(){
  const st=await postScore(rec);
  $("#sendState").textContent=st==="sent"?"✓ 成績已送出給主管":st==="queued"?"網路不穩，成績先存在這支手機，下次開啟會自動補送":"";
 }
-$("#againBtn").onclick=()=>{fillNameForm();show("vName")};
+/* ---------- 錯題重考 ---------- */
+function renderRetakeBox(){
+ const box=$("#rtBox"),btn=$("#rtBtn");
+ if(RETAKE&&!WRONGQ.length){
+  box.className="rtbox done";$("#rtMsg").textContent="🎉 恭喜！錯題全部答對了";btn.classList.add("hidden");
+ }else if(WRONGQ.length){
+  box.className="rtbox more";btn.classList.remove("hidden");
+  $("#rtMsg").textContent="還有 "+WRONGQ.length+" 題答錯（含時間到），再練習一次吧";
+  btn.textContent="錯題重考（"+WRONGQ.length+" 題）";
+ }else{box.className="rtbox hidden";btn.classList.add("hidden")}
+}
+function retakeSet(list){
+ // 同題目、同選項，只重新洗牌選項順序
+ return list.map(q=>{const order=shuffle(q.o.map((_,i)=>i));return Object.assign({},q,{o:order.map(i=>q.o[i]),ans:order.indexOf(q.ans)})});
+}
+async function startRetake(){
+ if(!WRONGQ.length)return;
+ RETAKE=true;RT_ROUND++;
+ EXAM=retakeSet(WRONGQ);cur=0;ans=[];startedAt=new Date();
+ $("#rtBanner").textContent="錯題重考・第 "+RT_ROUND+" 次重考";$("#rtBanner").classList.remove("hidden");
+ show("vExam");$("#examLoading").classList.remove("hidden");$("#examBody").classList.add("hidden");
+ $("#examLoading").textContent="題目準備中…";
+ await Promise.all(EXAM.filter(q=>q.img).map(q=>getImg(q.img).catch(()=>null)));
+ $("#examLoading").classList.add("hidden");$("#examBody").classList.remove("hidden");
+ $("#qTot").textContent=EXAM.length;
+ showQ();
+}
+async function finishRetake(){
+ const score=ans.filter(a=>a.ok).length,total=EXAM.length,name=EMP_NAME;
+ $("#scoreNum").innerHTML=score+"<small> / "+total+" 題答對</small>";
+ $("#scoreWho").textContent=STORE+"・"+name+"・錯題重考（第 "+RT_ROUND+" 次重考）";
+ $("#review").innerHTML=reviewHtml(ans);
+ WRONGQ=EXAM.filter((q,i)=>ans[i]&&!ans[i].ok);
+ renderRetakeBox();
+ show("vResult");
+ // 重考成績同樣送到 submit_url；新增欄位 kind／retake_round，attempt 維持正式考試的第幾次（重考不增加）
+ const rec={month:P.exam_month,store:STORE,name,score,total,answers:ans,timestamp:new Date().toISOString(),timestamp_taipei:new Date().toLocaleString("zh-TW",{timeZone:"Asia/Taipei",hour12:false}),
+  attempt:MAIN_ATTEMPT,kind:"retake",retake_round:RT_ROUND,started_at:startedAt.toISOString(),deadline:P.deadline,
+  store_total:staffOf(STORE).length,store_staff:staffOf(STORE)};
+ $("#sendState").textContent=P.submit_url?"成績送出中…":"";
+ const st=await postScore(rec);
+ $("#sendState").textContent=st==="sent"?"✓ 重考成績已送出給主管":st==="queued"?"網路不穩，成績先存在這支手機，下次開啟會自動補送":"";
+}
+$("#rtBtn").onclick=startRetake;
+$("#againBtn").onclick=()=>{RETAKE=false;fillNameForm();show("vName")};
 /* ---------- 解鎖 ---------- */
 function unlock(){$("#lock").remove();$("#app").classList.remove("hidden");initHome()}
 async function submit(){
