@@ -83,6 +83,9 @@ main.app{max-width:720px;margin:0 auto;padding:16px 16px 32px}
 .score{text-align:center;padding:10px 0 16px}
 .score .big2{font-size:52px;font-weight:800;line-height:1.1}.score .big2 small{font-size:22px;color:var(--sub)}
 .score .who{font-size:15px;color:var(--sub);margin-top:6px}
+.verdict{margin:8px 0 14px;border-radius:12px;padding:12px 14px;text-align:center;font-weight:800;line-height:1.5}
+.verdict.ok{border:1px solid #bfe3cd;background:#eaf7ef;color:#1f7a47;font-size:28px}
+.verdict.bad{border:1px solid #f0b4aa;background:#fff3f1;color:#c4513f;font-size:16px}
 .send{font-size:13px;text-align:center;margin-bottom:14px;color:var(--sub)}
 .rv{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;gap:10px}
 .rv .mk{font-size:18px;font-weight:800;flex:none;width:22px}.rv.ok .mk{color:var(--green)}.rv.bad .mk{color:#d23c25}
@@ -184,11 +187,11 @@ footer.ft{text-align:center;color:var(--sub);font-size:12px;padding:0 0 22px}
   </section>
   <!-- 成績 -->
   <section id="vResult" class="hidden">
-   <div class="score"><div class="big2" id="scoreNum"></div><div class="who" id="scoreWho"></div></div>
+   <div class="score"><div class="big2" id="scoreNum"></div><div class="who" id="scoreWho"></div>
+    <div class="verdict hidden" id="verdict"></div></div>
    <div class="send" id="sendState"></div>
    <div class="lbl">答案對照</div>
    <div id="review"></div>
-   <div class="cdbox hidden" id="cdBox"></div>
    <div class="btns"><button class="ghost" data-home>回複習頁</button><button class="ghost" id="againBtn">再考一次</button></div>
   </section>
  </main>
@@ -276,7 +279,7 @@ function initHome(){
  $("#demo").classList.toggle("hidden",!P.placeholder);
  $("#promoHint").textContent=P.promotions.length?(P.promotions.length+" 個活動"):"本月尚未公布";
  $("#mktHint").textContent=P.marketing.length?(P.marketing.length+" 個活動"):"本月尚未公布";
- $("#goHint").textContent=(P.price_q+P.pool_q)+" 題・每題 "+P.seconds+" 秒";
+ $("#goHint").textContent=(P.price_q+P.pool_q)+" 題・每題 "+P.seconds+" 秒・錯 2 題以內算通過";
  $("#stores").innerHTML=storeNames().map(n=>'<button type="button" role="tab" data-s="'+esc(n)+'">'+esc(n)+'</button>').join("");
  $("#stores").onclick=e=>{const b=e.target.closest("button");if(b)setStore(b.dataset.s,true)};
  const urlS=new URLSearchParams(location.search).get("store");let saved=null;try{saved=localStorage.getItem(LS_STORE)}catch(e){}
@@ -350,7 +353,7 @@ function fillNameForm(){
  else{$("#empSelect").value="";$("#empName").value=""}
  toggleOther();
  refreshCooldown();
- $("#rule").innerHTML="・共 "+(P.price_q+P.pool_q)+" 題選擇題："+P.price_q+" 題商品售價、"+P.pool_q+" 題當月活動<br>・每題限時 "+P.seconds+" 秒，時間到算答錯並自動跳下一題<br>・考完會顯示分數與正確答案，未全對時，須間隔 30 分鐘後才能再考一次"+(P.submit_url?"，成績會送給主管":"");
+ $("#rule").innerHTML="・共 "+(P.price_q+P.pool_q)+" 題選擇題："+P.price_q+" 題商品售價、"+P.pool_q+" 題當月活動<br>・每題限時 "+P.seconds+" 秒，時間到算答錯並自動跳下一題<br>・考完會顯示分數與正確答案，錯 2 題以內算通過。錯 3 題以上需重考，須間隔 30 分鐘後才能再考一次"+(P.submit_url?"，成績會送給主管":"");
 }
 function toggleOther(){
  const o=$("#empSelect").value==="__other__";
@@ -365,7 +368,8 @@ function chosenName(){
 }
 let EXAM=[],cur=0,ans=[],timer=null,tEnd=0,locked=false,startedAt=null,EMP_NAME="";
 const CD_MS=30*60*1000;
-let cdTick=null;
+let cdTick=null,LAST_PASS=null;
+function isPass(score,total){return score>=total-2}
 function cdNameKey(store,name){return "monthly_exam_cd_"+P.exam_month+"_"+store+"_"+name}
 function cdDevKey(store){return "monthly_exam_cd_dev_"+P.exam_month+"_"+store}
 function cdRead(k){try{const v=+localStorage.getItem(k)||0;return v>Date.now()?v:0}catch(e){return 0}}
@@ -399,12 +403,19 @@ function refreshCooldown(){
  const on=until>Date.now(),msg=on?cdLabel(until):"";
  const go=$("#goExamBtn");
  if(go){
-  if(!STORE){go.disabled=true;$("#goHint").textContent=(P.price_q+P.pool_q)+" 題・每題 "+P.seconds+" 秒"}
+  if(!STORE){go.disabled=true;$("#goHint").textContent=(P.price_q+P.pool_q)+" 題・每題 "+P.seconds+" 秒・錯 2 題以內算通過"}
   else if(on){go.disabled=true;$("#goHint").textContent=msg}
-  else{go.disabled=false;$("#goHint").textContent=(P.price_q+P.pool_q)+" 題・每題 "+P.seconds+" 秒"}
+  else{go.disabled=false;$("#goHint").textContent=(P.price_q+P.pool_q)+" 題・每題 "+P.seconds+" 秒・錯 2 題以內算通過"}
  }
- const box=$("#cdBox");
- if(box){box.classList.toggle("hidden",!on);box.textContent=msg;const ab=$("#againBtn");if(ab)ab.disabled=on}
+ const ab=$("#againBtn");if(ab)ab.disabled=on;
+ const v=$("#verdict");
+ if(v){
+  if(LAST_PASS===true){v.className="verdict ok";v.textContent="通過！"}
+  else if(LAST_PASS===false){
+   v.className="verdict bad";
+   v.textContent=on?"未通過：錯 3 題以上需重考，"+cdLabel(until):"未通過：錯 3 題以上需重考";
+  }else{v.className="verdict hidden";v.textContent=""}
+ }
  const cn=$("#cdName"),sb=$("#startBtn");
  if(cn){cn.classList.toggle("hidden",!on);cn.textContent=msg}
  if(sb)sb.disabled=on;
@@ -418,7 +429,7 @@ async function startExam(){
  if(until){$("#nameErr").textContent=cdLabel(until);refreshCooldown();return}
  try{localStorage.setItem(LS_NAME,name)}catch(e){}
  EMP_NAME=name;
- EXAM=makeExam();cur=0;ans=[];startedAt=new Date();
+ LAST_PASS=null;EXAM=makeExam();cur=0;ans=[];startedAt=new Date();
  show("vExam");$("#examLoading").classList.remove("hidden");$("#examBody").classList.add("hidden");
  $("#examLoading").textContent="題目準備中…";
  // 先把所有題目圖片載好，計時才公平
@@ -470,7 +481,8 @@ async function finish(){
  const score=ans.filter(a=>a.ok).length,total=EXAM.length,name=EMP_NAME;
  const akey="monthly_exam_attempt_"+P.exam_month+"_"+STORE+"_"+name;let attempt=1;
  try{attempt=(+localStorage.getItem(akey)||0)+1;localStorage.setItem(akey,attempt)}catch(e){}
- if(score<total)setCooldown(STORE,name);
+ LAST_PASS=isPass(score,total);
+ if(!LAST_PASS)setCooldown(STORE,name);
  $("#scoreNum").innerHTML=score+"<small> / "+total+"</small>";
  $("#scoreWho").textContent=STORE+"・"+name+"・"+P.exam_label+"（第 "+attempt+" 次）";
  $("#review").innerHTML=reviewHtml(ans);
