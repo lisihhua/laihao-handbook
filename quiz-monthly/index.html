@@ -89,11 +89,8 @@ main.app{max-width:720px;margin:0 auto;padding:16px 16px 32px}
 .rv .tx{flex:1;min-width:0;font-size:14px}.rv .tx b{display:block;font-size:15px;line-height:1.4}
 .rv .tx .ca{color:#1f7a47;font-weight:700}.rv .tx .ya{color:#b1301d}
 .btns{display:flex;gap:10px;margin-top:16px}.btns>*{flex:1}
-.rtbox{margin-top:16px;border-radius:12px;padding:14px;text-align:center}
-.rtbox.more{border:1px solid #f0b4aa;background:#fff3f1}.rtbox.done{border:1px solid #bfe3cd;background:#eaf7ef}
-.rtbox .rtmsg{font-size:15px;margin-bottom:10px}.rtbox.done .rtmsg{font-size:18px;font-weight:800;color:#1f7a47;margin-bottom:0}
-.rtbtn{width:100%;border:0;border-radius:10px;background:var(--red);color:#fff;font-size:17px;font-weight:700;padding:14px}
-.rtbanner{display:inline-block;font-size:13px;font-weight:700;border-radius:20px;padding:3px 12px;background:#fff3f1;color:#c4513f;border:1px solid #f0b4aa;margin-bottom:8px}
+.cdbox{margin-top:16px;border:1px solid #f0b4aa;background:#fff3f1;border-radius:12px;padding:12px 14px;text-align:center;font-size:15px;font-weight:700;color:#c4513f}
+.ghost[disabled],.pri[disabled]{opacity:.45;cursor:default}
 footer.ft{text-align:center;color:var(--sub);font-size:12px;padding:0 0 22px}
 /* lock */
 #lock{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
@@ -142,7 +139,7 @@ footer.ft{text-align:center;color:var(--sub);font-size:12px;padding:0 0 22px}
    <button class="big b1" data-v="vTop"><span class="ic">🏆</span><span>前50名商品<small id="topHint">熱銷商品與售價</small></span><span class="ar">›</span></button>
    <button class="big b2" data-v="vPromo"><span class="ic">🏷️</span><span>當月促銷活動<small id="promoHint"></small></span><span class="ar">›</span></button>
    <button class="big b3" data-v="vMkt"><span class="ic">📣</span><span>當月行銷活動<small id="mktHint"></small></span><span class="ar">›</span></button>
-   <button class="big go" data-v="vName"><span class="ic">✍️</span><span>我準備好要考試了！<small id="goHint"></small></span><span class="ar">›</span></button>
+   <button class="big go" data-v="vName" id="goExamBtn"><span class="ic">✍️</span><span>我準備好要考試了！<small id="goHint"></small></span><span class="ar">›</span></button>
   </section>
   <!-- 前 50 名 -->
   <section id="vTop" class="hidden">
@@ -166,6 +163,7 @@ footer.ft{text-align:center;color:var(--sub);font-size:12px;padding:0 0 22px}
     <select id="empSelect" aria-label="選擇姓名"><option value="">請選擇姓名</option></select>
     <input id="empName" class="hidden" maxlength="20" placeholder="請輸入姓名" autocomplete="name">
     <div class="need" id="nameErr"></div>
+    <div class="cdbox hidden" id="cdName"></div>
     <div class="rule" id="rule"></div>
     <button class="pri" id="startBtn">開始考試</button>
    </div>
@@ -174,7 +172,6 @@ footer.ft{text-align:center;color:var(--sub);font-size:12px;padding:0 0 22px}
   <section id="vExam" class="hidden">
    <div id="examLoading" class="loading">題目準備中…</div>
    <div id="examBody" class="hidden">
-    <div class="rtbanner hidden" id="rtBanner"></div>
     <div class="qtop"><span>第 <b id="qNo">1</b> / <span id="qTot">15</span> 題</span><span class="clock" id="clock">10</span></div>
     <div class="tbar" id="tbar"><i id="tfill"></i></div>
     <span class="qtag" id="qTag"></span>
@@ -191,7 +188,7 @@ footer.ft{text-align:center;color:var(--sub);font-size:12px;padding:0 0 22px}
    <div class="send" id="sendState"></div>
    <div class="lbl">答案對照</div>
    <div id="review"></div>
-   <div class="rtbox hidden" id="rtBox"><div class="rtmsg" id="rtMsg"></div><button class="rtbtn hidden" id="rtBtn">錯題重考</button></div>
+   <div class="cdbox hidden" id="cdBox"></div>
    <div class="btns"><button class="ghost" data-home>回複習頁</button><button class="ghost" id="againBtn">再考一次</button></div>
   </section>
  </main>
@@ -268,6 +265,7 @@ function setStore(n,save){
  document.title="來好｜"+head+P.month_label+"門市考試";
  $("#need").textContent=STORE?"":"請先選擇你的門市";
  document.querySelectorAll("#vHome .big").forEach(b=>{b.disabled=!STORE&&b.dataset.v!=="vPromo"&&b.dataset.v!=="vMkt"});
+ refreshCooldown();
  $("#topHint").textContent=STORE?(STORE+"・"+P.rank_period_label+"熱銷 "+P.stores[STORE].length+" 項，含售價"):"選擇門市後查看";
 }
 function initHome(){
@@ -283,6 +281,7 @@ function initHome(){
  $("#stores").onclick=e=>{const b=e.target.closest("button");if(b)setStore(b.dataset.s,true)};
  const urlS=new URLSearchParams(location.search).get("store");let saved=null;try{saved=localStorage.getItem(LS_STORE)}catch(e){}
  setStore(storeNames().includes(urlS)?urlS:saved,storeNames().includes(urlS));
+ startCdTick();
  renderActs("#promoRows",P.promotions);renderActs("#mktRows",P.marketing);
  show("vHome");flushPending();
 }
@@ -304,7 +303,7 @@ document.querySelectorAll("#vHome .big").forEach(b=>b.onclick=()=>{
  if(v==="vName") fillNameForm();
  show(v);
 });
-document.querySelectorAll("[data-home]").forEach(b=>b.onclick=()=>{stopTimer();show("vHome")});
+document.querySelectorAll("[data-home]").forEach(b=>b.onclick=()=>{stopTimer();show("vHome");refreshCooldown()});
 /* ---------- 出題 ---------- */
 const rnd=n=>Math.floor(Math.random()*n);
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]]}return a}
@@ -350,7 +349,8 @@ function fillNameForm(){
  else if(saved){$("#empSelect").value="__other__";$("#empName").value=saved}
  else{$("#empSelect").value="";$("#empName").value=""}
  toggleOther();
- $("#rule").innerHTML="・共 "+(P.price_q+P.pool_q)+" 題選擇題："+P.price_q+" 題商品售價、"+P.pool_q+" 題當月活動<br>・每題限時 "+P.seconds+" 秒，時間到算答錯並自動跳下一題<br>・考完會顯示分數與正確答案，答錯的題目可按「錯題重考」再練習"+(P.submit_url?"，成績會送給主管":"");
+ refreshCooldown();
+ $("#rule").innerHTML="・共 "+(P.price_q+P.pool_q)+" 題選擇題："+P.price_q+" 題商品售價、"+P.pool_q+" 題當月活動<br>・每題限時 "+P.seconds+" 秒，時間到算答錯並自動跳下一題<br>・考完會顯示分數與正確答案，未全對時，須間隔 30 分鐘後才能再考一次"+(P.submit_url?"，成績會送給主管":"");
 }
 function toggleOther(){
  const o=$("#empSelect").value==="__other__";
@@ -364,16 +364,61 @@ function chosenName(){
  return v;
 }
 let EXAM=[],cur=0,ans=[],timer=null,tEnd=0,locked=false,startedAt=null,EMP_NAME="";
-let RETAKE=false,RT_ROUND=0,MAIN_ATTEMPT=1,WRONGQ=[];
+const CD_MS=30*60*1000;
+let cdTick=null;
+function cdNameKey(store,name){return "monthly_exam_cd_"+P.exam_month+"_"+store+"_"+name}
+function cdDevKey(store){return "monthly_exam_cd_dev_"+P.exam_month+"_"+store}
+function cdRead(k){try{const v=+localStorage.getItem(k)||0;return v>Date.now()?v:0}catch(e){return 0}}
+function cooldownUntil(store,name){
+ if(!store||!P)return 0;
+ let t=cdRead(cdDevKey(store));
+ if(name)t=Math.max(t,cdRead(cdNameKey(store,name)));
+ return t;
+}
+function setCooldown(store,name){
+ const until=Date.now()+CD_MS;
+ try{localStorage.setItem(cdNameKey(store,name),String(until));localStorage.setItem(cdDevKey(store),String(until))}catch(e){}
+ return until;
+}
+function cdLabel(until){
+ const hm=new Date(until).toLocaleTimeString("en-GB",{timeZone:"Asia/Taipei",hour:"2-digit",minute:"2-digit",hour12:false});
+ const left=Math.max(0,until-Date.now());
+ const mm=String(Math.floor(left/60000)).padStart(2,"0"),ss=String(Math.floor(left%60000/1000)).padStart(2,"0");
+ return "請於 "+hm+" 後再考（還有 "+mm+":"+ss+"）";
+}
+function currentCdName(){
+ if(EMP_NAME)return EMP_NAME;
+ const n=typeof chosenName==="function"?chosenName():"";
+ if(n)return n;
+ try{return localStorage.getItem(LS_NAME)||""}catch(e){return ""}
+}
+function startCdTick(){if(!cdTick)cdTick=setInterval(refreshCooldown,1000);refreshCooldown()}
+function refreshCooldown(){
+ if(!P)return;
+ const until=STORE?cooldownUntil(STORE,currentCdName()):0;
+ const on=until>Date.now(),msg=on?cdLabel(until):"";
+ const go=$("#goExamBtn");
+ if(go){
+  if(!STORE){go.disabled=true;$("#goHint").textContent=(P.price_q+P.pool_q)+" 題・每題 "+P.seconds+" 秒"}
+  else if(on){go.disabled=true;$("#goHint").textContent=msg}
+  else{go.disabled=false;$("#goHint").textContent=(P.price_q+P.pool_q)+" 題・每題 "+P.seconds+" 秒"}
+ }
+ const box=$("#cdBox");
+ if(box){box.classList.toggle("hidden",!on);box.textContent=msg;const ab=$("#againBtn");if(ab)ab.disabled=on}
+ const cn=$("#cdName"),sb=$("#startBtn");
+ if(cn){cn.classList.toggle("hidden",!on);cn.textContent=msg}
+ if(sb)sb.disabled=on;
+}
 function stopTimer(){if(timer){clearInterval(timer);timer=null}}
 async function startExam(){
  const name=chosenName();
  if(!$("#empSelect").value){$("#nameErr").textContent="請選擇姓名";$("#empSelect").focus();return}
  if(!name){$("#nameErr").textContent="請輸入姓名";$("#empName").focus();return}
+ const until=cooldownUntil(STORE,name);
+ if(until){$("#nameErr").textContent=cdLabel(until);refreshCooldown();return}
  try{localStorage.setItem(LS_NAME,name)}catch(e){}
  EMP_NAME=name;
- EXAM=makeExam();EXAM.forEach((q,i)=>q.no0=i+1);cur=0;ans=[];startedAt=new Date();
- RETAKE=false;RT_ROUND=0;WRONGQ=[];$("#rtBanner").classList.add("hidden");
+ EXAM=makeExam();cur=0;ans=[];startedAt=new Date();
  show("vExam");$("#examLoading").classList.remove("hidden");$("#examBody").classList.add("hidden");
  $("#examLoading").textContent="題目準備中…";
  // 先把所有題目圖片載好，計時才公平
@@ -383,7 +428,8 @@ async function startExam(){
  showQ();
 }
 $("#startBtn").onclick=startExam;
-$("#empSelect").addEventListener("change",toggleOther);
+$("#empSelect").addEventListener("change",()=>{toggleOther();refreshCooldown()});
+$("#empName").addEventListener("input",refreshCooldown);
 $("#empName").addEventListener("keydown",e=>{if(e.key==="Enter")startExam()});
 async function showQ(){
  const q=EXAM[cur];locked=false;
@@ -410,12 +456,12 @@ function tick(){
 function choose(i){
  if(locked)return;locked=true;stopTimer();
  const q=EXAM[cur],ok=i===q.ans;
- ans.push({no:q.no0||cur+1,type:q.type==="price"?"價格":q.type,question:q.q+(q.type==="price"?"（"+q.sub+"）":""),
+ ans.push({no:cur+1,type:q.type==="price"?"價格":q.type,question:q.q+(q.type==="price"?"（"+q.sub+"）":""),
   choice:i>=0?q.o[i]:null,correct:q.o[q.ans],ok,timeout:i<0,ms:Date.now()-q.t0});
  document.querySelectorAll("#opts .opt").forEach((b,k)=>{b.disabled=true;if(k===q.ans)b.classList.add("ok");else if(k===i)b.classList.add("bad")});
  $("#flash").className="flash "+(ok?"ok":"bad");
  $("#flash").textContent=i<0?"⏰ 時間到！":ok?"✓ 答對了":"✗ 答錯了";
- setTimeout(()=>{cur++;if(cur<EXAM.length)showQ();else if(RETAKE)finishRetake();else finish()},i<0?1300:900);
+ setTimeout(()=>{cur++;if(cur<EXAM.length)showQ();else finish()},i<0?1300:900);
 }
 function reviewHtml(list){
  return list.map(a=>'<div class="rv '+(a.ok?"ok":"bad")+'"><span class="mk">'+(a.ok?"✓":"✗")+'</span><div class="tx"><b>'+a.no+'. '+esc(a.question)+'</b>正確答案：<span class="ca">'+esc(a.correct)+'</span>'+(a.ok?'':'<br>你的答案：<span class="ya">'+(a.timeout?"時間到未作答":esc(a.choice))+'</span>')+'</div></div>').join("");
@@ -424,13 +470,11 @@ async function finish(){
  const score=ans.filter(a=>a.ok).length,total=EXAM.length,name=EMP_NAME;
  const akey="monthly_exam_attempt_"+P.exam_month+"_"+STORE+"_"+name;let attempt=1;
  try{attempt=(+localStorage.getItem(akey)||0)+1;localStorage.setItem(akey,attempt)}catch(e){}
- MAIN_ATTEMPT=attempt;
+ if(score<total)setCooldown(STORE,name);
  $("#scoreNum").innerHTML=score+"<small> / "+total+"</small>";
  $("#scoreWho").textContent=STORE+"・"+name+"・"+P.exam_label+"（第 "+attempt+" 次）";
  $("#review").innerHTML=reviewHtml(ans);
- WRONGQ=EXAM.filter((q,i)=>ans[i]&&!ans[i].ok);
- renderRetakeBox();
- show("vResult");
+ show("vResult");refreshCooldown();
  const rec={month:P.exam_month,store:STORE,name,score,total,answers:ans,timestamp:new Date().toISOString(),timestamp_taipei:new Date().toLocaleString("zh-TW",{timeZone:"Asia/Taipei",hour12:false}),
   attempt,started_at:startedAt.toISOString(),deadline:P.deadline,
   store_total:staffOf(STORE).length,store_staff:staffOf(STORE)};
@@ -438,51 +482,7 @@ async function finish(){
  const st=await postScore(rec);
  $("#sendState").textContent=st==="sent"?"✓ 成績已送出給主管":st==="queued"?"網路不穩，成績先存在這支手機，下次開啟會自動補送":"";
 }
-/* ---------- 錯題重考 ---------- */
-function renderRetakeBox(){
- const box=$("#rtBox"),btn=$("#rtBtn");
- if(RETAKE&&!WRONGQ.length){
-  box.className="rtbox done";$("#rtMsg").textContent="🎉 恭喜！錯題全部答對了";btn.classList.add("hidden");
- }else if(WRONGQ.length){
-  box.className="rtbox more";btn.classList.remove("hidden");
-  $("#rtMsg").textContent="還有 "+WRONGQ.length+" 題答錯（含時間到），再練習一次吧";
-  btn.textContent="錯題重考（"+WRONGQ.length+" 題）";
- }else{box.className="rtbox hidden";btn.classList.add("hidden")}
-}
-function retakeSet(list){
- // 同題目、同選項，只重新洗牌選項順序
- return list.map(q=>{const order=shuffle(q.o.map((_,i)=>i));return Object.assign({},q,{o:order.map(i=>q.o[i]),ans:order.indexOf(q.ans)})});
-}
-async function startRetake(){
- if(!WRONGQ.length)return;
- RETAKE=true;RT_ROUND++;
- EXAM=retakeSet(WRONGQ);cur=0;ans=[];startedAt=new Date();
- $("#rtBanner").textContent="錯題重考・第 "+RT_ROUND+" 次重考";$("#rtBanner").classList.remove("hidden");
- show("vExam");$("#examLoading").classList.remove("hidden");$("#examBody").classList.add("hidden");
- $("#examLoading").textContent="題目準備中…";
- await Promise.all(EXAM.filter(q=>q.img).map(q=>getImg(q.img).catch(()=>null)));
- $("#examLoading").classList.add("hidden");$("#examBody").classList.remove("hidden");
- $("#qTot").textContent=EXAM.length;
- showQ();
-}
-async function finishRetake(){
- const score=ans.filter(a=>a.ok).length,total=EXAM.length,name=EMP_NAME;
- $("#scoreNum").innerHTML=score+"<small> / "+total+" 題答對</small>";
- $("#scoreWho").textContent=STORE+"・"+name+"・錯題重考（第 "+RT_ROUND+" 次重考）";
- $("#review").innerHTML=reviewHtml(ans);
- WRONGQ=EXAM.filter((q,i)=>ans[i]&&!ans[i].ok);
- renderRetakeBox();
- show("vResult");
- // 重考成績同樣送到 submit_url；新增欄位 kind／retake_round，attempt 維持正式考試的第幾次（重考不增加）
- const rec={month:P.exam_month,store:STORE,name,score,total,answers:ans,timestamp:new Date().toISOString(),timestamp_taipei:new Date().toLocaleString("zh-TW",{timeZone:"Asia/Taipei",hour12:false}),
-  attempt:MAIN_ATTEMPT,kind:"retake",retake_round:RT_ROUND,started_at:startedAt.toISOString(),deadline:P.deadline,
-  store_total:staffOf(STORE).length,store_staff:staffOf(STORE)};
- $("#sendState").textContent=P.submit_url?"成績送出中…":"";
- const st=await postScore(rec);
- $("#sendState").textContent=st==="sent"?"✓ 重考成績已送出給主管":st==="queued"?"網路不穩，成績先存在這支手機，下次開啟會自動補送":"";
-}
-$("#rtBtn").onclick=startRetake;
-$("#againBtn").onclick=()=>{RETAKE=false;fillNameForm();show("vName")};
+$("#againBtn").onclick=()=>{if(STORE&&cooldownUntil(STORE,currentCdName())){refreshCooldown();return}fillNameForm();show("vName")};
 /* ---------- 解鎖 ---------- */
 function unlock(){$("#lock").remove();$("#app").classList.remove("hidden");initHome()}
 async function submit(){
