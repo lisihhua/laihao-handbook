@@ -166,12 +166,20 @@ function upd(){
  $("#none").style.display=shown?"none":"block";
  $("#cnt").textContent=(all?"":STORE+"・")+(q?`符合 ${shown} / `:"")+`${baseV} 家廠商・${baseN} 項商品`;
 }
+function syncQuizLinks(){
+ const q=(STORE&&STORE!==ALL)?("?store="+encodeURIComponent(STORE)):"";
+ document.querySelectorAll("#quizMenu a").forEach(a=>{
+  const base=(a.getAttribute("href")||"").split("?")[0];
+  if(/^(?:\.\/)?quiz/.test(base)) a.setAttribute("href", base+q);
+ });
+}
 function setStore(n,save){
  STORE=SO.includes(n)?n:ALL;
  document.querySelectorAll("#stores button").forEach(b=>{const c=b.dataset.s===STORE;b.classList.toggle("cur",c);b.setAttribute("aria-selected",c)});
  if(save){try{localStorage.setItem(LS_STORE,STORE)}catch(e){}
   const u=new URL(location.href);if(STORE===ALL)u.searchParams.delete("store");else u.searchParams.set("store",STORE);history.replaceState(null,"",u.pathname+u.search+u.hash);}
  upd();
+ syncQuizLinks();
 }
 let t;$("#q").addEventListener("input",()=>{clearTimeout(t);t=setTimeout(upd,120)});
 $("#menuBtn").onclick=()=>nav.classList.toggle("open");
@@ -182,7 +190,7 @@ if(SO.length){
  if(urlS&&(urlS===ALL||SO.includes(urlS)))setStore(urlS,true);         // ?store=<店名> 優先，並記住
  else if(saved&&(saved===ALL||SO.includes(saved)))setStore(saved,false); // 上次選的店
  else setStore(DEF,false);                                               // 預設（build_site.py 的 DEFAULT_STORE）
-}else{STORE=ALL;upd();}
+}else{STORE=ALL;upd();syncQuizLinks();}
 const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){io.unobserve(e.target);loadImg(e.target)}}),{rootMargin:"600px 0px"});
 document.querySelectorAll("img[data-p]").forEach(im=>io.observe(im));
 }
