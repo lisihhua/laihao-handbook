@@ -395,7 +395,7 @@ function tick(){
  const left=Math.max(0,tEnd-Date.now()),ms=P.seconds*1000;
  const s=Math.ceil(left/1000);
  $("#clock").textContent=s;$("#tfill").style.width=(left/ms*100)+"%";
- const w=left<=3000;$("#clock").classList.toggle("warn",w);$("#tbar").classList.toggle("warn",w);
+ const w=left<=(P.warn||5)*1000;$("#clock").classList.toggle("warn",w);$("#tbar").classList.toggle("warn",w);
  if(left<=0)choose(-1);
 }
 function choose(i){
