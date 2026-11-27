@@ -353,7 +353,7 @@ function fillNameForm(){
  else{$("#empSelect").value="";$("#empName").value=""}
  toggleOther();
  refreshCooldown();
- $("#rule").innerHTML="・共 "+(P.price_q+P.pool_q)+" 題選擇題："+P.price_q+" 題商品售價、"+P.pool_q+" 題當月活動<br>・每題限時 "+P.seconds+" 秒，時間到算答錯並自動跳下一題<br>・考完會顯示分數與正確答案，錯 2 題以內算通過。錯 3 題以上需重考，須間隔 30 分鐘後才能再考一次"+(P.submit_url?"，成績會送給主管":"");
+ $("#rule").innerHTML="・共 "+(P.price_q+P.pool_q)+" 題選擇題："+P.price_q+" 題商品售價、"+P.pool_q+" 題當月活動<br>・每題限時 "+P.seconds+" 秒，時間到算答錯並自動跳下一題<br>・考完會顯示分數與正確答案，錯 2 題以內算通過。錯3題(含)需要重考，10 分鐘後才能再考"+(P.submit_url?"，成績會送給主管":"");
 }
 function toggleOther(){
  const o=$("#empSelect").value==="__other__";
@@ -367,7 +367,7 @@ function chosenName(){
  return v;
 }
 let EXAM=[],cur=0,ans=[],timer=null,tEnd=0,locked=false,startedAt=null,EMP_NAME="";
-const CD_MS=30*60*1000;
+const CD_MS=10*60*1000;
 let cdTick=null,LAST_PASS=null;
 function isPass(score,total){return score>=total-2}
 function cdNameKey(store,name){return "monthly_exam_cd_"+P.exam_month+"_"+store+"_"+name}
@@ -413,7 +413,7 @@ function refreshCooldown(){
   if(LAST_PASS===true){v.className="verdict ok";v.textContent="通過！"}
   else if(LAST_PASS===false){
    v.className="verdict bad";
-   v.textContent=on?"未通過：錯 3 題以上需重考，"+cdLabel(until):"未通過：錯 3 題以上需重考";
+   v.textContent=on?"未通過：錯3題(含)需要重考，"+cdLabel(until):"未通過：錯3題(含)需要重考";
   }else{v.className="verdict hidden";v.textContent=""}
  }
  const cn=$("#cdName"),sb=$("#startBtn");
